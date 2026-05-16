@@ -1,0 +1,12 @@
+langchain
+langchain_community
+langchain_mistralai
+langchain_groq
+psycopg[binary]
+pymongo
+sqlalchemy
+pymysql
+pyodbc
+streamlit
+requests
+python-dotenv
