@@ -563,8 +563,9 @@ def render_header():
     st.markdown(
         """
         <div class="hero-card">
-            <div class="badge">Omnilytix ✨</div>
-            <h1>Autonomous AI Data Analyst for SQL & MongoDB</h1>
+            <div class="badge">AI Data Analyst</div>
+            <h1>Omnilytix ✨</h1>
+            <h3>Autonomous AI Data Analyst for SQL & MongoDB</h3>
             <p>
                 Use the sidebar to enter your Groq API key and database credentials, then chat with
                 your database using a dark, focused interface.
