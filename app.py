@@ -1,6 +1,7 @@
 import json
 import re
 
+import pandas as pd
 import streamlit as st
 from database import (
     DatabaseConfig,
@@ -748,6 +749,77 @@ def render_chat():
                     with st.expander("Executed Query", expanded=False):
                         for q in message["queries"]:
                             st.code(q, language="sql" if st.session_state.connection_kind == "sql" else "json")
+                if message.get("charts"):
+                    for chart_args in message["charts"]:
+                        try:
+                            chart_type = chart_args.get("chart_type")
+                            data_json = chart_args.get("data_json", "[]")
+                            title = chart_args.get("title", "Chart")
+                            x_key = chart_args.get("x_key")
+                            y_key = chart_args.get("y_key")
+                            z_key = chart_args.get("z_key")
+                            
+                            import json
+                            import pandas as pd
+                            df = pd.DataFrame(json.loads(data_json))
+                            if df.empty:
+                                st.warning("The AI called generate_chart but provided no data. It likely hallucinated the tool call or failed to query the database first.")
+                                continue
+                            
+                            st.markdown(f"### {title}")
+                            
+                            if chart_type in ("heatmap", "box", "histogram"):
+                                import matplotlib.pyplot as plt
+                                import seaborn as sns
+                                fig, ax = plt.subplots(figsize=(8, 6))
+                                fig.patch.set_alpha(0) # transparent background
+                                ax.set_facecolor('none')
+                                if chart_type == "heatmap":
+                                    if z_key and x_key and y_key:
+                                        pivoted = df.pivot(index=y_key, columns=x_key, values=z_key)
+                                        sns.heatmap(pivoted, ax=ax, cmap="Blues", annot=True)
+                                    else:
+                                        numeric_df = df.select_dtypes(include='number')
+                                        sns.heatmap(numeric_df.corr(), ax=ax, cmap="Blues", annot=True)
+                                elif chart_type == "box":
+                                    sns.boxplot(data=df, x=x_key, y=y_key, ax=ax)
+                                elif chart_type == "histogram":
+                                    sns.histplot(data=df, x=x_key, ax=ax)
+                                
+                                # Make labels white for dark theme
+                                ax.tick_params(colors='white')
+                                ax.xaxis.label.set_color('white')
+                                ax.yaxis.label.set_color('white')
+                                st.pyplot(fig)
+                            else:
+                                import plotly.express as px
+                                if chart_type == "bar":
+                                    fig = px.bar(df, x=x_key, y=y_key)
+                                elif chart_type == "line":
+                                    fig = px.line(df, x=x_key, y=y_key)
+                                elif chart_type == "scatter":
+                                    fig = px.scatter(df, x=x_key, y=y_key, size=z_key if z_key else None)
+                                elif chart_type == "pie":
+                                    fig = px.pie(df, names=x_key, values=y_key)
+                                elif chart_type == "donut":
+                                    fig = px.pie(df, names=x_key, values=y_key, hole=0.5)
+                                elif chart_type == "area":
+                                    fig = px.area(df, x=x_key, y=y_key)
+                                elif chart_type == "funnel":
+                                    fig = px.funnel(df, x=y_key, y=x_key)
+                                elif chart_type == "treemap":
+                                    fig = px.treemap(df, path=[x_key], values=y_key)
+                                else:
+                                    fig = px.bar(df, x=x_key, y=y_key)
+                                
+                                fig.update_layout(
+                                    paper_bgcolor="rgba(0,0,0,0)",
+                                    plot_bgcolor="rgba(0,0,0,0)",
+                                    font=dict(color="white")
+                                )
+                                st.plotly_chart(fig, use_container_width=True)
+                        except Exception as e:
+                            st.error(f"Failed to render chart: {e}")
 
     prompt = st.chat_input("Ask about your database")
     if not prompt:
@@ -760,6 +832,7 @@ def render_chat():
     with st.chat_message("assistant"):
         with st.spinner("Generating answer..."):
             queries = []
+            charts = []
             try:
                 messages = build_compact_messages(st.session_state.chat_history, prompt)
                 response = st.session_state.agent.invoke({"messages": messages})
@@ -776,16 +849,94 @@ def render_chat():
                                 queries.append(args["query_json"])
                             elif name == "aggregate_mongo_documents" and "pipeline_json" in args:
                                 queries.append(args["pipeline_json"])
+                            elif name == "generate_chart":
+                                charts.append(args)
             except Exception as exc:
                 answer = f"I ran into an error: {exc}"
 
+            if not answer and charts:
+                answer = "Here is the visualization you requested:"
+            elif not answer and not queries and not charts:
+                answer = "I'm sorry, I couldn't generate a response."
+                
             render_answer(answer)
             if queries:
                 with st.expander("Executed Query", expanded=False):
                     for q in queries:
                         st.code(q, language="sql" if st.session_state.connection_kind == "sql" else "json")
+            if charts:
+                for chart_args in charts:
+                        try:
+                            chart_type = chart_args.get("chart_type")
+                            data_json = chart_args.get("data_json", "[]")
+                            title = chart_args.get("title", "Chart")
+                            x_key = chart_args.get("x_key")
+                            y_key = chart_args.get("y_key")
+                            z_key = chart_args.get("z_key")
+                            
+                            import json
+                            import pandas as pd
+                            df = pd.DataFrame(json.loads(data_json))
+                            if df.empty:
+                                st.warning("The AI called generate_chart but provided no data. It likely hallucinated the tool call or failed to query the database first.")
+                                continue
+                            
+                            st.markdown(f"### {title}")
+                            
+                            if chart_type in ("heatmap", "box", "histogram"):
+                                import matplotlib.pyplot as plt
+                                import seaborn as sns
+                                fig, ax = plt.subplots(figsize=(8, 6))
+                                fig.patch.set_alpha(0) # transparent background
+                                ax.set_facecolor('none')
+                                if chart_type == "heatmap":
+                                    if z_key and x_key and y_key:
+                                        pivoted = df.pivot(index=y_key, columns=x_key, values=z_key)
+                                        sns.heatmap(pivoted, ax=ax, cmap="Blues", annot=True)
+                                    else:
+                                        numeric_df = df.select_dtypes(include='number')
+                                        sns.heatmap(numeric_df.corr(), ax=ax, cmap="Blues", annot=True)
+                                elif chart_type == "box":
+                                    sns.boxplot(data=df, x=x_key, y=y_key, ax=ax)
+                                elif chart_type == "histogram":
+                                    sns.histplot(data=df, x=x_key, ax=ax)
+                                
+                                # Make labels white for dark theme
+                                ax.tick_params(colors='white')
+                                ax.xaxis.label.set_color('white')
+                                ax.yaxis.label.set_color('white')
+                                st.pyplot(fig)
+                            else:
+                                import plotly.express as px
+                                if chart_type == "bar":
+                                    fig = px.bar(df, x=x_key, y=y_key)
+                                elif chart_type == "line":
+                                    fig = px.line(df, x=x_key, y=y_key)
+                                elif chart_type == "scatter":
+                                    fig = px.scatter(df, x=x_key, y=y_key, size=z_key if z_key else None)
+                                elif chart_type == "pie":
+                                    fig = px.pie(df, names=x_key, values=y_key)
+                                elif chart_type == "donut":
+                                    fig = px.pie(df, names=x_key, values=y_key, hole=0.5)
+                                elif chart_type == "area":
+                                    fig = px.area(df, x=x_key, y=y_key)
+                                elif chart_type == "funnel":
+                                    fig = px.funnel(df, x=y_key, y=x_key)
+                                elif chart_type == "treemap":
+                                    fig = px.treemap(df, path=[x_key], values=y_key)
+                                else:
+                                    fig = px.bar(df, x=x_key, y=y_key)
+                                
+                                fig.update_layout(
+                                    paper_bgcolor="rgba(0,0,0,0)",
+                                    plot_bgcolor="rgba(0,0,0,0)",
+                                    font=dict(color="white")
+                                )
+                                st.plotly_chart(fig, use_container_width=True)
+                        except Exception as e:
+                            st.error(f"Failed to render chart: {e}")
 
-    st.session_state.chat_history.append({"role": "assistant", "content": answer, "queries": queries})
+    st.session_state.chat_history.append({"role": "assistant", "content": answer, "queries": queries, "charts": charts})
 
 
 def main():

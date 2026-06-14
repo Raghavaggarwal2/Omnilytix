@@ -7,10 +7,101 @@ from langchain_community.agent_toolkits import SQLDatabaseToolkit
 from langchain_core.tools import tool
 
 
+@tool
+def generate_chart(chart_type: str, data_json: str, title: str, x_key: str = "", y_key: str = "", z_key: str = "") -> str:
+    """
+    Generates an analytical chart.
+    Args:
+        chart_type: One of "bar", "line", "scatter", "pie", "donut", "treemap", "heatmap", "box", "histogram", "area", "funnel".
+        data_json: A JSON string of the raw data rows to plot (e.g., '[{"category": "A", "value": 10}, ...]').
+        title: The title of the chart.
+        x_key: The dictionary key for the X axis (or names/categories for pie/treemap).
+        y_key: The dictionary key for the Y axis (or values for pie/treemap).
+        z_key: Optional. The dictionary key for the Z axis (values for heatmap, size for scatter bubble).
+    Returns:
+        A success string. The UI intercepts this to render natively.
+    """
+    try:
+        import json
+        json.loads(data_json)
+    except Exception:
+        return "Error: data_json must be a valid JSON string of an array of objects."
+    return "Chart configuration successfully saved. The UI will display the chart."
+
+
+
+def _generate_compact_eda_profile(data_string: str) -> str:
+    if not data_string or len(data_string) < 10:
+        return ""
+    try:
+        import pandas as pd
+        import json
+        import ast
+        
+        parsed = None
+        try:
+            parsed = json.loads(data_string)
+        except json.JSONDecodeError:
+            try:
+                parsed = ast.literal_eval(data_string)
+            except Exception:
+                pass
+                
+        if not parsed or not isinstance(parsed, list) or len(parsed) == 0:
+            return ""
+            
+        # SQL tuples might be list of tuples without column names. Let's see if we can still run EDA.
+        # It's better if they have names, but pandas handles list of tuples.
+        df = pd.DataFrame(parsed)
+        if df.empty or len(df) < 5:
+            return ""
+            
+        warnings = []
+        # Missing values
+        for col in df.columns:
+            missing_pct = df[col].isnull().mean()
+            if missing_pct > 0.05:
+                warnings.append(f"'{col}' has {int(missing_pct * 100)}% missing values")
+                
+        # Outliers using IQR
+        numeric_cols = df.select_dtypes(include='number').columns
+        for col in numeric_cols:
+            Q1 = df[col].quantile(0.25)
+            Q3 = df[col].quantile(0.75)
+            IQR = Q3 - Q1
+            if IQR == 0:
+                continue
+            lower_bound = Q1 - 1.5 * IQR
+            upper_bound = Q3 + 1.5 * IQR
+            outliers = df[(df[col] < lower_bound) | (df[col] > upper_bound)]
+            if len(outliers) > 0:
+                pct_outlier = len(outliers) / len(df)
+                if pct_outlier > 0.01:
+                    warnings.append(f"'{col}' has {len(outliers)} outliers")
+                    
+        if warnings:
+            return "\n\n[EDA Profile: " + " | ".join(warnings) + "]"
+        return ""
+    except Exception:
+        return ""
+
+
 def build_sql_tools(database, llm):
     toolkit = SQLDatabaseToolkit(db=database, llm=llm)
     tools = toolkit.get_tools()
-    return [tool for tool in tools if tool.name != "sql_db_query_checker"]
+    
+    for t in tools:
+        if t.name == "sql_db_query":
+            original_run = t._run
+            def _wrapped_run(*args, **kwargs):
+                res = original_run(*args, **kwargs)
+                eda = _generate_compact_eda_profile(res)
+                return str(res) + eda
+            t._run = _wrapped_run
+            
+    tools = [tool for tool in tools if tool.name != "sql_db_query_checker"]
+    tools.append(generate_chart)
+    return tools
 
 
 def _serialize_documents(documents):
@@ -312,7 +403,8 @@ def build_mongo_tools(database_connection):
         safe_limit = _safe_limit(limit, 1, 50)
         collection = _get_collection(database_connection, collection_name)
         documents = list(collection.find({}).limit(safe_limit))
-        return _serialize_documents(documents)
+        res = _serialize_documents(documents)
+        return res + _generate_compact_eda_profile(res)
 
     @tool("find_mongo_documents")
     def find_mongo_documents(collection_name: str, query_json: str = "{}", limit: int = 5) -> str:
@@ -320,7 +412,8 @@ def build_mongo_tools(database_connection):
         query = _load_query_json(query_json)
         safe_limit = _safe_limit(limit, 1, 50)
         documents = database_connection.find_documents(collection_name, query, safe_limit)
-        return _serialize_documents(documents)
+        res = _serialize_documents(documents)
+        return res + _generate_compact_eda_profile(res)
 
     @tool("count_mongo_documents")
     def count_mongo_documents(collection_name: str, query_json: str = "{}") -> str:
@@ -373,7 +466,8 @@ def build_mongo_tools(database_connection):
         pipeline_to_run = pipeline if has_limit_stage else [*pipeline, {"$limit": safe_limit}]
         collection = _get_collection(database_connection, collection_name)
         documents = list(collection.aggregate(pipeline_to_run, allowDiskUse=False))
-        return _serialize_documents(documents)
+        res = _serialize_documents(documents)
+        return res + _generate_compact_eda_profile(res)
 
     @tool("extract_mongo_urls")
     def extract_mongo_urls(collection_name: str, query_json: str = "{}", limit: int = 50) -> str:
@@ -401,4 +495,5 @@ def build_mongo_tools(database_connection):
         aggregate_mongo_documents,
         extract_mongo_urls,
         extract_mongo_link_fields,
+        generate_chart,
     ]
