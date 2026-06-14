@@ -9,7 +9,6 @@ dependencies = [
     "langchain-community>=0.4.1",
     "langchain-groq>=1.1.2",
     "langchain-mistralai>=1.1.4",
-    "psycopg[binary]>=3.2.0",
     "pymysql>=1.1.1",
     "pyodbc>=5.2.0",
     "python-dotenv>=1.2.2",
@@ -21,4 +20,5 @@ dependencies = [
     "pandas>=3.0.2",
     "matplotlib>=3.11.0",
     "seaborn>=0.13.2",
+    "psycopg2-binary>=2.9.12",
 ]
