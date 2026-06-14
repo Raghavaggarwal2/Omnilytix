@@ -409,8 +409,8 @@ def render_answer(answer):
 
 
 st.set_page_config(
-    page_title="SQL Agent",
-    page_icon="🗃️",
+    page_title="Omnilytix",
+    page_icon="✨",
     layout="wide",
 )
 
@@ -563,8 +563,8 @@ def render_header():
     st.markdown(
         """
         <div class="hero-card">
-            <div class="badge">Secure database chat</div>
-            <h1>Connect to SQL or MongoDB and ask questions in plain English.</h1>
+            <div class="badge">Omnilytix ✨</div>
+            <h1>Autonomous AI Data Analyst for SQL & MongoDB</h1>
             <p>
                 Use the sidebar to enter your Groq API key and database credentials, then chat with
                 your database using a dark, focused interface.
