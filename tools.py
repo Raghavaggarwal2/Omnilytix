@@ -9,7 +9,8 @@ from langchain_core.tools import tool
 
 def build_sql_tools(database, llm):
     toolkit = SQLDatabaseToolkit(db=database, llm=llm)
-    return toolkit.get_tools()
+    tools = toolkit.get_tools()
+    return [tool for tool in tools if tool.name != "sql_db_query_checker"]
 
 
 def _serialize_documents(documents):

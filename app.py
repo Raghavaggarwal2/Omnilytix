@@ -15,14 +15,7 @@ from sql_agent import build_compact_messages, create_mongo_agent, create_sql_age
 def _clean_display_text(value):
     if value is None:
         return ""
-
-    text = str(value)
-    text = text.replace("```", "")
-    text = text.replace("`", "")
-    text = text.replace("**", "")
-    text = text.replace("__", "")
-    text = text.replace("~~", "")
-    return text
+    return str(value)
 
 
 def _parse_json_answer(answer):
@@ -134,7 +127,7 @@ def _render_scalar_value(label, value):
     if markdown_resources:
         clean_text = _clean_resource_text(value)
         if clean_text and clean_text.strip() and clean_text.strip() not in {resource["label"] for resource in markdown_resources}:
-            st.text(f"{safe_label}: {clean_text}")
+            st.markdown(f"**{safe_label}**: {clean_text}")
         else:
             st.caption(safe_label)
 
@@ -142,13 +135,13 @@ def _render_scalar_value(label, value):
             st.link_button(resource["label"], resource["url"])
         return
 
-    st.text(f"{safe_label}: {_clean_display_text(value)}")
+    st.markdown(f"**{safe_label}**: {_clean_display_text(value)}")
 
 
 def _render_list_value(label, value):
     safe_label = _clean_display_text(label.replace("_", " ").title())
     if not value:
-        st.text(f"{safe_label}: []")
+        st.markdown(f"**{safe_label}**: []")
         return
 
     if all(_is_resource_value(item) for item in value):
@@ -167,7 +160,7 @@ def _render_list_value(label, value):
         st.json(value)
         return
 
-    st.text(f"{safe_label}: {', '.join(_clean_display_text(item) for item in value)}")
+    st.markdown(f"**{safe_label}**: {', '.join(_clean_display_text(item) for item in value)}")
 
 
 def _render_structure_value(label, value):
@@ -211,7 +204,7 @@ def _split_record_items(record):
 def _render_record_block(record, title):
     with st.expander(_clean_display_text(title), expanded=False):
         if not isinstance(record, dict):
-            st.text(_clean_display_text(record))
+            st.markdown(_clean_display_text(record))
             return
 
         scalar_items, nested_items = _split_record_items(record)
@@ -259,7 +252,7 @@ def _render_sql_payload(payload):
                 with st.expander("Preview JSON", expanded=False):
                     st.json(payload[:5])
         else:
-            st.text("\n".join(_clean_display_text(item) for item in payload))
+            st.markdown("\n".join(_clean_display_text(item) for item in payload))
         return
 
     if isinstance(payload, dict):
@@ -297,7 +290,7 @@ def _render_sql_payload(payload):
                 else:
                     st.dataframe(table_like_rows, use_container_width=True, hide_index=True)
             else:
-                st.text("\n".join(_clean_display_text(item) for item in table_like_rows))
+                st.markdown("\n".join(_clean_display_text(item) for item in table_like_rows))
 
         nested_items = [
             (key, value)
@@ -308,13 +301,13 @@ def _render_sql_payload(payload):
             _render_structure_value(key, value)
         return
 
-    st.text(_clean_display_text(payload))
+    st.markdown(_clean_display_text(payload))
 
 
 def _render_mongo_document(document, index):
     title_value = document.get("_id", f"Document {index + 1}") if isinstance(document, dict) else f"Document {index + 1}"
     if not isinstance(document, dict):
-        st.text(_clean_display_text(document))
+        st.markdown(_clean_display_text(document))
         return
 
     _render_record_block(document, f"Document {index + 1}: {title_value}")
@@ -333,7 +326,7 @@ def _render_mongo_payload(payload):
             for index, document in enumerate(payload):
                 _render_mongo_document(document, index)
         else:
-            st.text("\n".join(_clean_display_text(item) for item in payload))
+            st.markdown("\n".join(_clean_display_text(item) for item in payload))
         return
 
     if isinstance(payload, dict):
@@ -388,7 +381,7 @@ def _render_mongo_payload(payload):
                 _render_scalar_value(key, value)
         return
 
-    st.text(_clean_display_text(payload))
+    st.markdown(_clean_display_text(payload))
 
 
 def render_answer(answer):
@@ -399,7 +392,7 @@ def render_answer(answer):
             if _contains_url(answer):
                 _render_scalar_value("Answer", answer)
             else:
-                st.text(_clean_display_text(answer))
+                st.markdown(_clean_display_text(answer))
             return
         _render_mongo_payload(payload)
         return
@@ -408,7 +401,7 @@ def render_answer(answer):
         if _contains_url(answer):
             _render_scalar_value("Answer", answer)
         else:
-            st.text(_clean_display_text(answer))
+            st.markdown(_clean_display_text(answer))
         return
 
     _render_sql_payload(payload)
@@ -517,6 +510,21 @@ CUSTOM_CSS = """
     hr {
         border-color: rgba(148, 163, 184, 0.12);
     }
+
+    [data-testid="stChatMessage"] p,
+    [data-testid="stChatMessage"] li {
+        color: #f8fbff !important;
+        font-size: 1.05rem;
+        line-height: 1.6;
+    }
+    
+    [data-testid="stChatMessage"] code {
+        background: rgba(56, 189, 248, 0.1) !important;
+        color: #8bd8ff !important;
+        padding: 0.2rem 0.4rem;
+        border-radius: 6px;
+    }
+
 </style>
 """
 
@@ -733,7 +741,7 @@ def render_chat():
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
             if message["role"] == "user":
-                st.text(message["content"])
+                st.markdown(message["content"])
             else:
                 render_answer(message["content"])
                 if message.get("queries"):
@@ -747,7 +755,7 @@ def render_chat():
 
     st.session_state.chat_history.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
-        st.text(prompt)
+        st.markdown(prompt)
 
     with st.chat_message("assistant"):
         with st.spinner("Generating answer..."):

@@ -21,13 +21,7 @@ MAX_MODEL_HISTORY_CHARS = 2200
 def _strip_inline_markdown(text):
     if not text:
         return text
-
-    cleaned = text.replace("```", "")
-    cleaned = cleaned.replace("`", "")
-    cleaned = cleaned.replace("**", "")
-    cleaned = cleaned.replace("__", "")
-    cleaned = cleaned.replace("~~", "")
-    return cleaned
+    return text
 
 
 def _markdown_table_to_text(lines):
@@ -133,7 +127,7 @@ then look at the results of the query and return the answer. Unless the user
 specifies a specific number of examples they wish to obtain, always limit your
 query to at most {top_k} results.
 
-Return the final answer in plain text only. Do not use markdown tables.
+You may use markdown formatting like bolding, italics, or code blocks to make your response richer, but do not use markdown tables.
 Prefer short paragraphs, bullet points, or labeled lines.
 
 Use the previous conversation to understand follow-up questions like
@@ -190,7 +184,7 @@ summary.
 When the user's query is likely to result in structured data, return a JSON
 string. The JSON should be the only thing in your response.
 
-Return the final answer in plain text only. Do not use markdown tables.
+You may use markdown formatting like bolding, italics, or code blocks to make your response richer, but do not use markdown tables.
 Prefer short paragraphs, bullet points, or labeled lines.
 
 Never make any write operations such as insert, update, delete, or drop.
