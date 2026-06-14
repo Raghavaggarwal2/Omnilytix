@@ -2,7 +2,7 @@ langchain
 langchain_community
 langchain_mistralai
 langchain_groq
-psycopg[binary]
+psycopg2-binary
 pymongo
 sqlalchemy
 pymysql

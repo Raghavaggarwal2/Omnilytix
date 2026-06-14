@@ -45,7 +45,7 @@ Omnilytix relies on a robust data stack:
 ```bash
 pip install streamlit pandas plotly matplotlib seaborn requests python-dotenv
 pip install langchain langchain-community langchain-groq
-pip install sqlalchemy pymysql psycopg[binary] pyodbc pymongo
+pip install sqlalchemy pymysql psycopg2-binary pyodbc pymongo
 ```
 *(Note: If you are connecting to SQL Server, ensure the `ODBC Driver 18 for SQL Server` is installed on your OS).*
 
